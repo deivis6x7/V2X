@@ -1,0 +1,21 @@
+<routes>
+  <vType id="car1" accel="0.8" decel="4.5" sigma="1.0" length="4" minGap="2.5" maxSpeed="13.89" guiShape="passenger" />
+  <vType id="car2" accel="0.8" decel="4.5" sigma="1.0" length="4" minGap="2.5" maxSpeed="13.89" guiShape="passenger" />
+  <vType id="drone" accel="0.8" decel="4.5" sigma="1.0" length="4" minGap="2.5" maxSpeed="13.89" guiShape="passenger" />
+  
+  <route id="0" edges="1/2to1/1 1/1to1/0"/>
+  <route id="1" edges="2/1to1/1 1/1to0/1"/>
+  <route id="2" edges="0/1to1/1 1/1to2/1"/>
+  <route id="3" edges="1/0to1/1 1/1to1/2"/>
+
+  <!-- <vehicle id="0" type="drone" route="1" depart="0"/> -->
+
+  <vehicle id="0" type="drone" route="0" depart="0">
+  	<stop lane="1/2to1/1_0" endPos="190" until="60"/>
+  </vehicle> 
+  
+  <vehicle id="1" type="car1" route="1" depart="10.5"/>
+  <vehicle id="2" type="car1" route="2" depart="10.6"/>
+  <vehicle id="3" type="car2" route="2" depart="10.9"/>
+  
+</routes>
