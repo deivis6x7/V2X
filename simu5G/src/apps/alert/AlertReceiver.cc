@@ -60,17 +60,24 @@ void AlertReceiver::handleMessage(cMessage *msg)
 
     Packet* pPacket = check_and_cast<Packet*>(msg); // parser
 
-    //export
-    std::ofstream outputFile("out_msgReceived.txt", std::ios::app);
-    if(outputFile.is_open()){
-        //Timestamp
-        outputFile << msg->getArrivalTime() << endl;
-        //outputFile << "Timestamp = " << simTime() << endl; // equal
-        outputFile.close();
-    }
-
     // read Alert header
     auto alert = pPacket->popAtFront<AlertPacket>();
+
+    //export
+    int port = par("localPort");
+    if(port == 1000){
+        std::ofstream outputFile("out_msgReceived1000.txt", std::ios::app);
+        if(outputFile.is_open()){
+            outputFile << alert->getPayloadTimestamp() << "," << port << endl;
+            outputFile.close();
+        }
+    }else{
+        std::ofstream outputFile("out_msgReceived1001.txt", std::ios::app);
+        if(outputFile.is_open()){
+            outputFile << alert->getPayloadTimestamp() << "," << port << endl;
+            outputFile.close();
+        }
+    }
 
     // emit statistics
     simtime_t delay = simTime() - alert->getPayloadTimestamp();

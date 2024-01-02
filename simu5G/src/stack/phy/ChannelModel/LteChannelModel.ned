@@ -32,8 +32,11 @@ simple LteRealisticChannelModel extends LteChannelModel
     parameters:
     @class("LteRealisticChannelModel");
 
-	// Jammer
+	// Jamming Attack
 	bool jamming = default(false);
+	double startJamming = default(0.0);
+	double endJamming = default(0.0);
+	double jammingInterference = default(0.0);
 	
     // Enable/disable shadowing        
     bool shadowing = default(true);

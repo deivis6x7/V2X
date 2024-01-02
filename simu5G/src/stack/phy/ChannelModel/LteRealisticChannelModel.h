@@ -21,6 +21,12 @@ class LteRealisticChannelModel : public LteChannelModel
 {
 protected:
 
+  // Jamming Attack
+  bool jamming_;
+  double startJamming_;
+  double endJamming_;
+  double jammingInterference_;
+
   // Information needed about the playground
   bool useTorus_;
 
@@ -45,9 +51,6 @@ protected:
 
   // Average street's wide
   double wStreet_;
-
-  // jammer
-  bool jamming_;
 
   // enable/disable the shadowing
   bool shadowing_;

@@ -46,9 +46,14 @@ void LteRealisticChannelModel::initialize(int stage)
     LteChannelModel::initialize(stage);
     if (stage == inet::INITSTAGE_LOCAL)
     {
+        // Jamming Attack
+        jamming_ = par("jamming");
+        startJamming_ = par("startJamming");
+        endJamming_ = par("endJamming");
+        jammingInterference_ = par("jammingInterference");
+
         scenario_ = aToDeploymentScenario(par("scenario").stringValue());
         hNodeB_ = par("nodeb_height");
-        jamming_ = par("jamming");
         shadowing_ = par("shadowing");
         hBuilding_ = par("building_height");
         inside_building_ = par("inside_building");
@@ -1362,7 +1367,7 @@ std::vector<double> LteRealisticChannelModel::getRSRP_D2D(LteAirFrame *frame, Us
 
    return rsrpVector;
 }
-
+//getSINR_D2D - polymorphism
 std::vector<double> LteRealisticChannelModel::getSINR_D2D(LteAirFrame *frame, UserControlInfo* lteInfo, MacNodeId destId, Coord destCoord, MacNodeId enbId)
 {
    // AttenuationVector::iterator it;
@@ -1561,27 +1566,12 @@ std::vector<double> LteRealisticChannelModel::getSINR_D2D(LteAirFrame *frame, Us
    //sender is an UE
    updatePositionHistory(sourceId, sourceCoord);
 
-   //export - polimorfismo com getSINR_D2D
-   //std::ofstream outputFile("out_teste1.txt", std::ios::app);
-   //if (outputFile.is_open()){
-       //outputFile << NOW << "," << sourceId << endl;
-       //outputFile.close();
-   //}
-
    return snrVector;
 }
-//getSINR_D2D - polimorfismo (funciona)
+//getSINR_D2D - polymorphism (app: alert)
 std::vector<double> LteRealisticChannelModel::getSINR_D2D(LteAirFrame *frame, UserControlInfo* lteInfo_1, MacNodeId destId, Coord destCoord,MacNodeId enbId,const std::vector<double>& rsrpVector)
 {
    std::vector<double> snrVector = rsrpVector;
-   //export - rsrpVector
-   //std::ofstream outputFile("out_rsrp.txt", std::ios::app);
-   //if (outputFile.is_open()){
-       //for (unsigned int i = 0; i < numBands_; i++){
-           //outputFile << NOW << "," << snrVector[i] << endl;
-       //}
-       //outputFile.close();
-   //}
 
    MacNodeId sourceId = lteInfo_1->getSourceId();
    Coord sourceCoord = lteInfo_1->getCoord();
@@ -1596,12 +1586,7 @@ std::vector<double> LteRealisticChannelModel::getSINR_D2D(LteAirFrame *frame, Us
    Direction dir = D2D;
 
    double noiseFigure = 0.0;
-   //double extCellInterference = 0.0;
    double extCellInterference = 0.0;
-
-   double antennaGainEnb = 10.0;
-   double cableLoss = 2.0;
-   double attenuation = 0.0;
 
    //In D2D case the noise figure is the ueNoiseFigure_
    noiseFigure = ueNoiseFigure_;
@@ -1640,42 +1625,22 @@ std::vector<double> LteRealisticChannelModel::getSINR_D2D(LteAirFrame *frame, Us
        computeD2DInterference(enbId, sourceId, sourceCoord, destId, destCoord, (lteInfo_1->getFrameType() == FEEDBACKPKT), lteInfo_1->getCarrierFrequency(), rbmap, &d2dInterference,dir);
    }
 
-
-   //export
-   double sumSINR = 0.0;
-   //double distance = destCoord.distance(sourceCoord);
-
-
-   //double distance = destCoord.distance(sourceCoord);
-   //double actionRadius = 70.0;
-   //double timeIni = 32.0; //scenario1
-   //double timeFim = 42.0; //scenario1
-   double timeIni = 25.0; //scenario2
-   double timeFim = 45.0; //scenario2
-   //double amplificationFactor = (actionRadius - distance) / actionRadius;
-
-
-   std::vector<double> extInterference;
-   extInterference.resize(numBands_, 0);
-   computeExtCellInterference(enbId, sourceId, destCoord, (lteInfo_1->getFrameType() == FEEDBACKPKT), lteInfo_1->getCarrierFrequency(), &extInterference); // dBm
-   //computeExtCellInterference(eNbId, ueId, ueCoord, (lteInfo->getFrameType() == FEEDBACKPKT), lteInfo->getCarrierFrequency(), &extCellInterference); // dBm
-   //computeExtCellInterference(MacNodeId eNbId, MacNodeId nodeId, Coord coord, bool isCqi, double carrierFrequency,std::vector<double>* interference)
    //===================== SINR COMPUTATION ========================
    if (enableD2DInterference_)
    {
-           if(jamming_ && NOW >= timeIni && NOW <= timeFim){
+           if(jamming_ && NOW >= startJamming_ && NOW <= endJamming_){
+                   double totN;
+                   // denominator expressed in dBm as (N+extCell+inCell)
                    double den;
-                   double P_n; // [dBm]
-                   double totN = thermalNoise_ + noiseFigure;
-                   //double totN = dBmToLinear(thermalNoise_ + noiseFigure);
-                   double JammingInterference = 100000; // mW for each band
-
+                   double sumSINR = 0.0;
+                   // Add interference for each band
                    for (unsigned int i = 0; i < numBands_; i++){
-                       if (lteInfo_1->getFrameType() == DATAPKT && rbmap[MACRO][i] == 0)
-                           continue;
-                       P_n = dBmToLinear(totN + 10*log(numBands_/5));
-                       den = linearToDBm(extInterference[i] + P_n + d2dInterference[i] + JammingInterference);
-                       //den = linearToDBm(extCellInterference + P_n + d2dInterference[i] + JammingInterference[i]);
+                       //if (lteInfo_1->getFrameType() == DATAPKT && rbmap[MACRO][i] == 0)
+                           //continue;
+                       // compute and linearize total noise
+                       totN = dBmToLinear(thermalNoise_ + noiseFigure + jammingInterference_);
+                       den = linearToDBm(extCellInterference + totN + d2dInterference[i]);
+                       // compute final SINR. Subtraction in dB is equivalent to linear division
                        snrVector[i] -= den;
                        sumSINR += snrVector[i];
                    }
@@ -1683,54 +1648,39 @@ std::vector<double> LteRealisticChannelModel::getSINR_D2D(LteAirFrame *frame, Us
                    //std::ofstream outputFile("out_sinrJamming.txt", std::ios::app);
                    std::ofstream outputFile("out_sinr.txt", std::ios::app);
                    if (outputFile.is_open()){
-                       double P_n = dBmToLinear(thermalNoise_ + noiseFigure);
-                       //outputFile << NOW << "," << sourceId << "," << destId << "," << sumSINR / numBands_ << endl;
-                       //outputFile << NOW << "," << snrVector[numBands_-1] << "," << den << "," << numBands_ << "," << sumSINR / numBands_ << endl;
-                       //outputFile << NOW << "," << P_n << "," << den << "," << snrVector[0] << "," << sumSINR/numBands_ << endl;
-                       outputFile << NOW << "," << sourceId << "," << destId << "," << sumSINR/numBands_ << endl;
+
+                       //outputFile << NOW << "," << sourceId << "," << destId << "," << destCoord.distance(sourceCoord) << "," << dirToA(dir) << "," << sumSINR/numBands_ << endl;
+                       outputFile << NOW << "," << sourceId << "," << destId << "," << destCoord.distance(sourceCoord) << "," << sumSINR/numBands_ << endl;
                        outputFile.close();
                    }
 
            }else{
                // compute and linearize total noise
                double totN = dBmToLinear(thermalNoise_ + noiseFigure);
-               //double totN = thermalNoise_ + noiseFigure; //edit
-               //double P_n;
 
                // denominator expressed in dBm as (N+extCell+inCell)
                double den;
                //EV << "LteRealisticChannelModel::getSINR - distance from my Peer = " << destCoord.distance(sourceCoord) << " - DIR=" << dirToA(dir)  << endl;
-
+               double sumSINR = 0.0;
                // Add interference for each band
                for (unsigned int i = 0; i < numBands_; i++)
                {
                    // if we are decoding a data transmission and this RB has not been used, skip it
                    // TODO fix for multi-antenna case
-                   if (lteInfo_1->getFrameType() == DATAPKT && rbmap[MACRO][i] == 0)
-                       continue;
+                   //if (lteInfo_1->getFrameType() == DATAPKT && rbmap[MACRO][i] == 0)
+                       //continue;
                    //snrVector[i]+=antennaGainEnb;
                    //               (      mW            +  mW  +        mW            )
-                   //den = linearToDBm(extCellInterference + totN + d2dInterference[i]);
-                   den = linearToDBm(extInterference[i] + totN + d2dInterference[i]);
-
-                   //P_n = dBmToLinear(totN + 10*log(numBands_/5)); //edit
-                   //den = linearToDBm(extCellInterference + P_n + d2dInterference[i]); //edit
-
-                   //EV << "\t ext[" << extCellInterference << "] - in[" << d2dInterference[i] << "] - recvPwr["
-                       //<< dBmToLinear(snrVector[i]) << "] - sinr[" << snrVector[i]-den << "]\n";
+                   den = linearToDBm(extCellInterference + totN + d2dInterference[i]);
 
                    // compute final SINR. Subtraction in dB is equivalent to linear division
                    snrVector[i] -= den;
-
-                   //export
                    sumSINR +=snrVector[i];
                }
                //export
                std::ofstream outputFile("out_sinr.txt", std::ios::app);
                if (outputFile.is_open()){
-                   //outputFile << NOW << "," << sourceId << "," << destId << "," << sumSINR / numBands_ << endl;
-                   //outputFile << NOW << "," << snrVector[numBands_-1] << "," << den << "," << numBands_ << "," << sumSINR / numBands_ << endl;
-                   outputFile << NOW << "," << sourceId << "," << destId << "," << sumSINR/numBands_ << endl;
+                   outputFile << NOW << "," << sourceId << "," << destId << "," << destCoord.distance(sourceCoord) << "," << sumSINR/numBands_ << endl;
                    outputFile.close();
                }
            }
@@ -1743,8 +1693,8 @@ std::vector<double> LteRealisticChannelModel::getSINR_D2D(LteAirFrame *frame, Us
        {
            // if we are decoding a data transmission and this RB has not been used, skip it
            // TODO fix for multi-antenna case
-           if (lteInfo_1->getFrameType() == DATAPKT && rbmap[MACRO][i] == 0)
-               continue;
+           //if (lteInfo_1->getFrameType() == DATAPKT && rbmap[MACRO][i] == 0)
+               //continue;
 
            // compute final SINR
            snrVector[i] -=  (noiseFigure + thermalNoise_);

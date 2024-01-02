@@ -92,7 +92,7 @@ void AlertSender::handleMessage(cMessage *msg)
     if (msg->isSelfMessage())
     {
         if (!strcmp(msg->getName(), "selfSender"))
-            sendAlertPacket(); // se enviou, entra em sendAlertPacket -> export
+            sendAlertPacket(); // sendAlertPacket -> export
         else
             throw cRuntimeError("AlertSender::handleMessage - Unrecognized self message");
     }
@@ -115,11 +115,18 @@ void AlertSender::sendAlertPacket()
     socket.sendTo(packet, destAddress_, destPort_);
     nextSno_++;
     //export
-    std::ofstream outputFile("out_msgTransmitted.txt", std::ios::app);
-    if(outputFile.is_open()){
-        //Timestamp
-        outputFile << simTime() << endl;
-        outputFile.close();
+    if(destPort_ == 1000){
+        std::ofstream outputFile("out_msgTransmitted1000.txt", std::ios::app);
+        if(outputFile.is_open()){
+            outputFile << simTime() << "," << destPort_ << endl;
+            outputFile.close();
+        }
+    }else{
+        std::ofstream outputFile("out_msgTransmitted1001.txt", std::ios::app);
+        if(outputFile.is_open()){
+            outputFile << simTime() << "," << destPort_ << endl;
+            outputFile.close();
+        }
     }
 
     emit(alertSentMsg_, (long)1);
